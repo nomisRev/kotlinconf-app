@@ -14,35 +14,35 @@ import org.koin.ktor.ext.getKoin
 import org.koin.ktor.plugin.Koin
 
 fun Application.diModule() {
-    val client = HttpClient {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-
-                encodeDefaults = true
-                isLenient = true
-                allowSpecialFloatingPointValues = true
-                allowStructuredMapKeys = true
-                prettyPrint = false
-                useArrayPolymorphism = false
-            })
-        }
-    }
-
     install(Koin) {
         modules(
             serviceModule,
             repositoryModule,
             configModule,
             module {
-                single { client }
+                single<CoroutineScope> { this@diModule }
+                single { createClient() } onClose { it?.close() }
                 single { environment.config }
             }
         )
     }
 
     monitor.subscribe(ApplicationStopping) {
-        val closeableServices = it.getKoin().getAll<Closeable>()
-        closeableServices.forEach { it.close() }
+        it.getKoin().close()
+    }
+}
+
+private fun createClient() = HttpClient {
+    install(ContentNegotiation) {
+        json(Json {
+            ignoreUnknownKeys = true
+
+            encodeDefaults = true
+            isLenient = true
+            allowSpecialFloatingPointValues = true
+            allowStructuredMapKeys = true
+            prettyPrint = false
+            useArrayPolymorphism = false
+        })
     }
 }
